@@ -223,6 +223,106 @@ nep (Star r1) = (Cat (nep r1) (Star r1))
 
   -- Part 1 testing
 
+-- ----------EMPTY---------------
+-- testgen empty
+-- [False,False,False,False]
+
+-- empty $ toRE "@"
+-- True
+
+-- empty $ toRE "ab."
+-- False
+-- --------UNITARY-----------------
+-- testgen unitary
+-- [False,False,False,False]
+
+-- unitary $ toRE "@*"
+-- True
+
+-- unitary $ toRE "ab."
+-- False
+
+-- unitary $ toRE "@**"
+-- True
+
+-- unitary $ toRE "@********"
+-- True
+-- -------------BYP----------------
+-- testgen byp
+-- [True,False,True,False]
+
+-- byp $ toRE "a*"
+-- True
+
+-- byp $ toRE "ab."
+-- False
+
+-- byp $ toRE "ab.*"
+-- True
+
+-- byp $ toRE "@*"
+-- True
+-- --------------INF----------------
+-- testgen inf
+-- [True,True,True,True]
+
+-- inf $ toRE "@*"
+-- False
+
+-- inf $ toRE "a*"
+-- True
+
+-- inf $ toRE "ab.*"
+-- True
+
+-- inf $ toRE "ab."
+-- False
+-- ---------------REVER------------
+-- rever $ toRE "ab."
+-- Cat (Let 'b') (Let 'a')
+
+-- rever $ toRE "ab.cd.+"
+-- Union (Cat (Let 'b') (Let 'a')) (Cat (Let 'd') (Let 'c'))
+
+-- testgen rever
+-- [
+-- Star (Union (Cat (Let 'a') (Let 'a')) (Cat (Let 'b') (Let 'b'))),
+-- Cat (Union (Let 'a') (Let 'b')) (Cat (Union (Let 'a') (Let 'b')) (Cat (Let 'a') (Star (Union (Let 'a') (Let 'b'))))),
+-- Cat (Star (Let 'b')) (Star (Cat (Let 'a') (Cat (Star (Let 'b')) (Cat (Let 'a') (Star (Let 'b')))))),
+-- Cat (Star (Union (Let 'a') (Cat (Let 'b') (Let 'a')))) (Cat (Let 'b') (Cat (Let 'b') (Star (Union (Let 'a') (Cat (Let 'a') (Let 'b'))))))
+-- ]
+
+-- ---------------lq------------
+-- lq 'a' (toRE "ab.")
+-- Cat (Star Empty) (Let 'b')
+
+-- lq 'a' (toRE "ab.*")
+-- Cat (Cat (Star Empty) (Let 'b')) (Star (Cat (Let 'a') (Let 'b')))
+
+-- (leftq (lol "a") (lang_of $ toRE "ab.")) == (lang_of $ lq 'a' (toRE "ab."))
+-- True
+
+-- ---------------nep------------
+-- nep $ toRE "@*"
+-- Cat Empty (Star Empty)
+
+-- nep $ toRE "a*"
+-- Cat (Let 'a') (Star (Let 'a'))
+
+-- nep $ toRE "ab.*"
+-- Cat (Cat (Let 'a') (Let 'b')) (Star (Cat (Let 'a') (Let 'b')))
+
+-- nep $ toRE "ab."
+-- Cat (Let 'a') (Let 'b')
+
+-- testgen nep
+-- [
+-- Cat (Union (Cat (Let 'a') (Let 'a')) (Cat (Let 'b') (Let 'b'))) (Star (Union (Cat (Let 'a') (Let 'a')) (Cat (Let 'b') (Let 'b')))),
+-- Cat (Cat (Union (Cat (Cat (Union (Let 'a') (Let 'b')) (Star (Union (Let 'a') (Let 'b')))) (Let 'a')) (Let 'a')) (Union (Let 'a') (Let 'b'))) (Union (Let 'a') (Let 'b')),
+-- Union (Cat (Cat (Cat (Cat (Union (Cat (Cat (Let 'b') (Star (Let 'b'))) (Let 'a')) (Let 'a')) (Star (Let 'b'))) (Let 'a')) (Star (Cat (Cat (Cat (Star (Let 'b')) (Let 'a')) (Star (Let 'b'))) (Let 'a')))) (Star (Let 'b'))) (Cat (Let 'b') (Star (Let 'b'))),
+-- Cat (Cat (Union (Cat (Cat (Union (Let 'a') (Cat (Let 'b') (Let 'a'))) (Star (Union (Let 'a') (Cat (Let 'b') (Let 'a'))))) (Let 'b')) (Let 'b')) (Let 'b')) (Star (Union (Let 'a') (Cat (Let 'a') (Let 'b'))))
+-- ]
+
 ---------------- Part 2 ----------------
 
 -- Implement the two matching algorithms given in Section 3.4 of the notes.
@@ -241,6 +341,7 @@ match1 (Union r1 r2) w = (match1 r1 w) || (match1 r2 w)
 match1 (Cat r1 r2) w = or [ (match1 r1 w1) && (match1 r2 w2) | (w1, w2) <- (splits w) ]
 match1 (Star r1) w = w == "" || or [(match1 r1 w1) && (match1 (Star r1) w2) | (w1, w2) <- (splits w), w1 /= ""]
 
+
 match2 :: RegExp -> String -> Bool
 match2 r w = undefined
 
@@ -257,7 +358,7 @@ ena  = toRE "b*a.b*.a.*b*."       -- even number of a's
 bb1  = toRE "aba.+*b.b.aab.+*."   -- contains bb exactly once
 
 testList = [ab,ttla,ena,bb1]
-testgen f = [ f re | re <- testList]
+testgen f = [ f re | re <- testList]  -- for testing part 1
 
 -- For your tests, you may also find the following helpful. For example,
 -- you can generate all strings of length 10 (or 20) or less and then test
@@ -267,3 +368,11 @@ testgen f = [ f re | re <- testList]
 strings :: Int -> [String]
 strings n = concat $ [replicateM i sigma | i <- [0..n]]
 
+
+-- TESTING PART 2
+
+-- and [match1 r w == memb (lol w) (lang_of r)  | w <- strings 5, r <- testList]
+-- True
+
+-- and [match1 r w == memb (lol w) (lang_of r)  | w <- strings 7, r <- testList]
+-- True
