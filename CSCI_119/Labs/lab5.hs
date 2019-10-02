@@ -24,7 +24,6 @@ onlyA = ([0,1,2], 0, [1], f) where
 
 noDup :: [Int] -> Bool
 noDup [] = True
--- noDup [_] = True
 noDup (x:xs)
     | x `elem` xs = False
     | otherwise = noDup xs
