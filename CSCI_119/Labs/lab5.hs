@@ -48,8 +48,9 @@ checkFSM :: FSM -> Bool
 checkFSM (qs, s, fs, ts) = (noDup qs) && (s `elem` qs) && (fs `subset` qs) && (checkTransFunc ts qs)
 
 -- Gives the delta* function (recursive in w)
-delta_star :: FSM -> Int -> [Char] -> Int
-delta_star m@(qs,s,fs,ts) q w@(x:xs) = undefined
+delta_star :: FSM -> Int -> [Char] -> Int -- is Int param the start state?
+delta_star m q [] = q
+delta_star m@(qs,s,fs,ts) q w@(x:xs) = delta_star (m) (ts q x) (xs)
 
 -- Machine acceptance, Definition 1 (via delta*)
 accept1 :: FSM -> [Char] -> Bool
