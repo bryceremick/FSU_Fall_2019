@@ -54,18 +54,19 @@ delta_star m@(qs,s,fs,ts) q w@(x:xs) = delta_star (m) (ts q x) (xs)
 
 -- Machine acceptance, Definition 1 (via delta*)
 accept1 :: FSM -> [Char] -> Bool
-accept1 m w = undefined
+accept1 m@(qs,s,fs,ts) w = (delta_star m s w) `elem` fs
 
 
 -- Machine acceptance, Definition 2 (via L_q(M))
 
 -- accept2_aux m q w = whether m, starting in q, accepts w (recursive in w)
 accept2_aux :: FSM -> Int -> [Char] -> Bool
-accept2_aux m q w = undefined
+accept2_aux m@(qs,s,fs,ts) q [] = q `elem` fs
+accept2_aux m@(qs,s,fs,ts) q w@(x:xs) = accept2_aux (m) (ts q x) (xs)
 
 -- Acceptance, defined (non-recursively) in terms of accept2_aux
 accept2 :: FSM -> [Char] -> Bool
-accept2 m w = undefined
+accept2 m@(qs,s,fs,ts) w@(x:xs) = and [ accept2_aux m (ts q a) w | q <- qs, a <- w]
 
 
 ---- FSM construction
