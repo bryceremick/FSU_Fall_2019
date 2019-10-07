@@ -66,7 +66,7 @@ accept2_aux m@(qs,s,fs,ts) q w@(x:xs) = accept2_aux (m) (ts q x) (xs)
 
 -- Acceptance, defined (non-recursively) in terms of accept2_aux
 accept2 :: FSM -> [Char] -> Bool
-accept2 m@(qs,s,fs,ts) w@(x:xs) = and [ accept2_aux m (ts q a) w | q <- qs, a <- w]
+accept2 m@(qs,s,fs,ts) w@(x:xs) = accept2_aux m s w
 
 
 ---- FSM construction
