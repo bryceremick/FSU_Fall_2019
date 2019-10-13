@@ -1,4 +1,6 @@
 -- Lab 6:  FSM constructions for regular operators
+-- Bryce Remick
+-- 109557467
 
 import Data.List
 import Data.Array
@@ -15,6 +17,34 @@ strings n = concat $ [replicateM i sigma | i <- [0..n]]
 -- Finite state machines, now indexed by the type of their states
 -- M = (states, start, finals, transitions)  
 type FSM a = ([a], a, [a], a -> Char -> a)
+
+onlyA :: FSM Int
+onlyA = ([0,1,2], 0, [1], f) where
+    f 2 _ = 2
+    f q 'a' = q + 1
+    f q _ = q
+
+onlyB :: FSM Int
+onlyB = ([0,1,2], 0, [1], f) where
+    f 2 _ = 2
+    f q 'b' = q + 1
+    f q _ = q
+
+letA :: FSM Int
+letA = ([0,1,2], 0, [1], d) where
+    d 0 'a' = 1
+    d 0 _ = 2
+    d 1 _ = 2
+    d 2 _ = 2
+
+letB :: FSM Int
+letB = ([0,1,2], 0, [1], d) where
+    d 0 'b' = 1
+    d 0 _ = 2
+    d 1 _ = 2
+    d 2 _ = 2
+
+
 
 
 ---------------- A solution to Lab 5, ported to FSM a ------------------------
@@ -121,37 +151,63 @@ overlap (x:xs) ys = elem x ys || overlap xs ys
 
 
 -- Machine that accepts the empty language
+-- will NOT accept empty string
 emptyFSM :: FSM Int
-emptyFSM = undefined
+emptyFSM = ([0], 0, [], d) where
+  d 0 _ = 0
 
 -- Machine that accepts the language {"a"} where a in sigma
 letterFSM :: Char -> FSM Int
-letterFSM a = undefined
+letterFSM a = ([0,1,2], 0, [1], d) where
+  d q x = if q == 0 && x == a then 1 else 2
 
 -- Machine that accepts the union of the languages accepted by m1 and m2
 unionFSM :: (Eq a, Eq b) => FSM a -> FSM b -> FSM (a, b)
 unionFSM (qs1, s1, fs1, d1) (qs2, s2, fs2, d2) = (qs, s, fs, d) where
-  qs = undefined
-  s  = undefined
-  fs = undefined
-  d  = undefined
+  qs = qs1 >< qs2
+  s  = (s1,s2)
+  fs = [(q1,q2) | q1 <- qs1, q2 <- qs2, q1 `elem` fs1 || q2 `elem` fs2]
+  d (q1,q2) a = ((d1 q1 a),(d2 q2 a))
 
 -- Machine that accepts the concatenation of the languages accepted by m1 and m2
 catFSM :: (Eq a, Ord b) => FSM a -> FSM b -> FSM (a, [b])
 catFSM (qs1, s1, fs1, d1) (qs2, s2, fs2, d2) = (qs, s, fs, d) where
-  qs = undefined
-  s  = undefined
-  fs = undefined
-  d  = undefined
+  corrected q x = if q `elem` fs1 && not (s2 `elem` x) then [s2] `union` x else x
+  qs = [(q,x) | q <- qs1, x <- power qs2, (corrected q x == x)]
+  s  = (s1, corrected s1 [])
+  fs = [(q,x) | q <- qs1, x <- power qs2, (corrected q x == x), overlap x fs2]
+  d (q,x) a = (q',x') where
+    q' = d1 q a
+    x' = norm $ [s2 | q' `elem` fs1] ++ map (\q2 -> d2 q2 a) x
+
 
 -- Machine that accepts the Kleene star of the language accepted by m1
 starFSM :: Ord a => FSM a -> FSM [a]
 starFSM (qs1, s1, fs1, d1) = (qs, s, fs, d) where
-  qs = undefined
-  s  = undefined
-  fs = undefined
-  d  = undefined
+  qs = [x | x <- power qs1, not ((fs1 `subset` x) && (s1 `elem` x))]
+  s  = []
+  fs = [] `union` [ x | x <- power qs1, x `overlap` fs1 || null x]
+  d [] a = norm $ [s1 | q `elem` fs1] ++ [q] where q =  d1 s1 a
+  d x a = norm $ [s1 | overlap x' fs1] ++ x' where
+    x' = map (\q -> d1 q a) x
 
+
+-- personal tests ---
+-- qs1 = ['e','a','T']
+-- fs1 = ['a']
+-- s1 = 'e'
+-- qs = [x | x <- power qs1, not ((fs1 `subset` x) && (s1 `elem` x))]
+-- fs = [] `union` [ x | x <- power qs1, x `overlap` fs1 || null x]
+
+-- test = [] `union` [x | x <- qs1, [x] `overlap` fs1]
+
+-- qs2' = ['e','b','T']
+-- fs2' = ['b']
+-- s2' = 'e'
+-- corrected q x = if q `elem` fs1' && not (s2' `elem` x) then [s2'] `union` x else x
+
+-- tQ = [(q,x) | q <- qs1', x <- power qs2', (corrected q x == x), overlap x fs2']
+-- s'  = (s1', corrected s1' [])
 
 ---------------- Bonus Features (for testing and experimenting) ------------
 
@@ -224,3 +280,98 @@ re2fsm (Let c) = letterFSM c
 re2fsm (Union r1 r2) = reduce $ unionFSM (re2fsm r1) (re2fsm r2)
 re2fsm (Cat r1 r2) = reduce $ catFSM (re2fsm r1) (re2fsm r2)
 re2fsm (Star r1) = reduce $ starFSM (re2fsm r1)
+
+
+
+-- TESTING --
+
+-- EMPTY TESTS
+{-
+*Main> accept1 (emptyFSM) "a"
+False
+*Main> accept1 (emptyFSM) "b"
+False
+*Main> accept1 (emptyFSM) "ab"
+False
+*Main> accept1 (emptyFSM) "@"
+False
+*Main> accept1 (emptyFSM) ""
+-}
+
+-- LETTER TESTS
+{-
+*Main> accept1 (letterFSM 'a') "a"
+True
+*Main> accept1 (letterFSM 'a') "b"
+False
+*Main> accept1 (letterFSM 'a') "c"
+False
+*Main> accept1 (letterFSM 'a') "ab"
+False
+-}
+
+-- UNION TESTS
+-- onlyA is a machine that accepts all strings with ONE 'a'.
+-- onlyB is a machine that accepts all strings with ONE 'b'.
+{-
+*Main> accept1 (unionFSM (onlyA) (onlyB)) "a"
+True
+*Main> accept1 (unionFSM (onlyA) (onlyB)) "b"
+True
+*Main> accept1 (unionFSM (onlyA) (onlyB)) "c"
+False
+*Main> accept1 (unionFSM (onlyA) (onlyB)) "ab"
+True
+*Main> accept1 (unionFSM (onlyA) (onlyB)) "abb"
+True
+*Main> accept1 (unionFSM (onlyA) (onlyB)) "aab"
+True
+*Main> accept1 (unionFSM (onlyA) (onlyB)) "aabb"
+False
+*Main> accept1 (unionFSM (onlyA) (onlyB)) "aabbcc"
+False
+-}
+
+
+-- CAT TESTS
+{-
+*Main> checkFSM (catFSM letA letB)
+True
+*Main> accept1 (catFSM letA letB) "a"
+False
+*Main> accept1 (catFSM letA letB) "b"
+False
+*Main> accept1 (catFSM letA letB) "ab"
+True
+-}
+
+-- STAR TESTS
+
+{-
+*Main> accept1 (starFSM letA) "a"
+True
+*Main> accept1 (starFSM letA) "aaaaa"
+True
+*Main> accept1 (starFSM letA) "aaaab"
+False
+*Main> accept1 (starFSM letA) "b"
+False
+*Main> accept1 (starFSM letA) ""
+True
+-}
+
+
+-- re2fsm TESTS
+
+{-
+*Main> accept1 (re2fsm $ toRE "ab.") "ab"
+True
+*Main> accept1 (re2fsm $ toRE "ab.") "a"
+False
+*Main> accept1 (re2fsm $ toRE "ab.") "b"
+False
+*Main> accept1 (re2fsm $ toRE "ab.") "ba"
+False
+*Main> accept1 (re2fsm $ toRE "ab.") "aaa"
+False
+-}
