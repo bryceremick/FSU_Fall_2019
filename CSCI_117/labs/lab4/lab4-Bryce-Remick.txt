@@ -1,0 +1,96 @@
+Bryce Remick
+109557467
+
+<program>               ::=     program
+                                    <declaration-sequence>
+                                begin
+                                    <statement-sequence>
+                                end;
+
+<procedure>             ::=     procedure <identifier> ( <param-list> )
+                                    <declaration-sequence>
+                                    begin
+                                    <statement-sequence>
+                                    end;
+
+<param-list>            ::=     <param>
+                            |   <param>, <param-list>
+
+<param>                 ::=     <type> <identifier>                            
+
+<declaration-sequence>  ::=     <declaration>
+                            |   <declaration> <declaration-sequence> 
+
+<statement-sequence>    ::=     <statement>
+                            |   <statement> <statement-sequence>
+
+<declaration>           ::=     <type> <identifier-list>;
+
+<type>                  ::=     int 
+                            |   double
+
+<identifier-list>       ::=     <identifier>
+                            |   <array>
+                            |   <identifier>, <identifier-list>
+                            |   <array>, <identifier-list>
+
+<statement>             ::=     <assignment-statement>
+                            |   <if-statement>
+                            |   <loop-statement>
+                            |   <input-statement>
+                            |   <output-statement>
+
+<assignment-statement>  ::=     <identifier> := <expression ;
+
+<if-statement>          ::=     if <comparison> then
+                                    <statement-sequence>
+                                end if;
+                            |   if <comparison> then 
+                                    <statement-sequence>
+                                else
+                                    <statement-sequence>
+                                end if;
+
+<loop-statement>        ::=     while <comparison> loop
+                                    <statement-sequence>
+                                end loop;
+
+<input-statement>       ::=     input <identifier-list> ;
+
+<output-statement>      ::=     output <identifier-list> ;
+
+----
+
+<comparison>            ::=     ( <operand> = <operand> )
+                            |   ( <operand> != <operand> )
+                            |   ( <operand> <= <operand> )
+                            |   ( <operand> => <operand> )
+
+<expression>            ::=     <factor>
+                            |   <expression> + <factor>
+                            |   <expression> - <factor>
+
+<factor>                ::=     <operand>
+                            |   <factor> * <operand>
+
+<operand>               ::=     <integer>
+                            |   <identifier>
+                            |   ( <expression> )
+
+<array>                 ::=     <identifier>[<integer>]
+
+<identifier>            ::=     <letter>
+                            |   <identifier><letter>
+                            |   <identifier><letter><integer>
+                            |   <identifier> _ <letter>
+                           
+<integer>               ::=     <digit>
+                            |   <integer><digit>
+
+<letter>                ::=     A | B | C | .. | Z
+
+<digit>                 ::=     0 | 1 | 2 | .. | 9
+
+
+
+
