@@ -9,6 +9,7 @@ import Control.Monad (replicateM)  -- for strings function below
 -- Fixed alphabet, but everything below should work for any sigma!
 sigma :: [Char]
 sigma = "ab"
+-- sigma = ['a','b']
 
 -- All strings on sigma of length <= n (useful for testing)
 strings :: Int -> [String]
@@ -101,6 +102,36 @@ toRE w = go w [] where
 -- Finite state machines (as records), indexed by the type of their states
 type FSM a = ([a], a, [a], a -> Char -> a)
 
+accept2_aux :: Eq a => FSM a -> a -> [Char] -> Bool
+accept2_aux m@(_, _, fs, _) q [] = elem q fs
+accept2_aux m@(_, _, _, d) q (a:w) = accept2_aux m (d q a) w
+
+accept2 :: Eq a => FSM a -> [Char] -> Bool
+accept2 m@(_, s, _, _) w = accept2_aux m s w
+
+splits :: [a] -> [([a], [a])]
+splits xs = [(take x xs, drop x xs) | x <- [0..(length xs)]]
+
+match1 :: RegExp -> String -> Bool
+match1 Empty w = False
+match1 (Let c) "" = False
+match1 (Let c) (w:ws) = c == w && ws == []
+match1 (Union r1 r2) w = (match1 r1 w) || (match1 r2 w)
+match1 (Cat r1 r2) w = or [ (match1 r1 w1) && (match1 r2 w2) | (w1, w2) <- (splits w) ]
+match1 (Star r1) w = w == "" || or [(match1 r1 w1) && (match1 (Star r1) w2) | (w1, w2) <- (splits w), w1 /= ""]
+
+letA :: FSM Int
+letA = ([0,1,2], 0, [1], d) where
+    d 0 'a' = 1
+    d 0 _ = 2
+    d 1 _ = 2
+    d 2 _ = 2
+
+onlyA :: FSM Int
+onlyA = ([0,1,2], 0, [1], f) where
+    f 2 _ = 2
+    f q 'a' = q + 1
+    f q _ = q
 
 
 ---------------- Lab 7 begins here ----------------
@@ -128,26 +159,28 @@ solve ((l11:l1J) : rows) (l1':lI') = simp x1 : xI where
   -- lI' are the rest of the contants [l2',...,ln']
   
   -- first column [l21, ..., ln1]
-  lI1 = undefined
+  lI1 = map head rows
 
   -- sub-matrix [[l22,...,l2n], ..., [ln2,...,lnn]]
-  lIJ = undefined
+  lIJ = map tail rows
 
   -- [[l22_bar,...,l2n_bar], ..., [ln2_bar,...,lnn_bar]] computed via (6)
   lIJ_bar = zipWith sixes lI1 lIJ            -- loops for i = 2 .. n
   sixes li1 liJ = zipWith (six li1) l1J liJ  -- loops for j = 2 .. n
-  six li1 l1j lij = undefined
+  six li1 lij l1j = Union' [Cat' [li1, Star' l11, l1j], lij]
 
   -- [l2'_bar,..., ln'_bar] computed via (7)
   lI'_bar = zipWith seven lI1 lI'
-  seven li1 li' = undefined
+  seven li1 li' =  Union' [Cat' [li1, Star' l11, l1'], li']
     
   -- recursively solve the system of size n-1
   xI = solve lIJ_bar lI'_bar
 
   -- compute x1 from xI via (5)
-  x1 = undefined
+  x1 = Cat' [Star' l11, Union' (zipWith (\lij xi -> Cat' [lij, xi]) l1J xI ++ [l1'])]
 
+ 
+test ((l11:l1J) : rows) = map tail rows
 
 -- Generate a regular SPLE from an FSM via formulas in Theorem 6.5
 toSPLE :: FSM Int -> ([[RegExp']], [RegExp'])
@@ -155,10 +188,10 @@ toSPLE (qs,s,fs,d) = (lIJ, lI') where
   
   -- Construct matrix of coefficients (coef i j = Lij)
   lIJ = [[simp (coef i j) | j <- qs] | i <- qs]
-  coef i j = undefined
+  coef i j = Union' [Cat' [Let' a, Star' (Zero)] | a <- sigma, (d i a == j)]
 
   -- Construct constants
-  lI' = undefined
+  lI' =  [ if q `elem` fs then One else Zero | q <- qs]
 
 
 -- Convert an FSM to a RegExp'
@@ -168,8 +201,61 @@ conv m@(_,s,_,_) = simp $ solution !! s where
   solution = solve matrix consts
 
 
+
 -- Test! Test! Test! (and show your tests here)
 
+{-
+*Main> proper (toRE' "ab.")
+True
+*Main> proper (toRE' "ab.cd.+")
+True
+*Main> proper (toRE' "ab.*")
+False
+*Main> proper (toRE' "a*")
+False
+*Main> proper (toRE' "ab+*")
+False
+*Main> proper (toRE' "a")
+True
+*Main> proper (toRE' "@")
+True
+*Main> proper (toRE' "@*")
+False
+-}
+
+{-
+let r = conv letA
+*Main> match1 (fromRE' r) "a"
+True
+*Main> match1 (fromRE' r) "b"
+False
+*Main> match1 (fromRE' r) "c"
+False
+*Main> match1 (fromRE' r) "ab"
+False
+*Main> match1 (fromRE' r) ""
+False
+-}
+
+{-
+let r = conv onlyA
+*Main> match1 (fromRE' r) "ab"
+False
+*Main> match1 (fromRE' r) "abab"
+False
+*Main> match1 (fromRE' r) "aaaaa"
+True
+*Main> match1 (fromRE' r) "aa"
+True
+*Main> match1 (fromRE' r) "a"
+True
+*Main> match1 (fromRE' r) "b"
+False
+*Main> match1 (fromRE' r) "abbbbbbb"
+False
+*Main> match1 (fromRE' r) "bbbbbbb"
+False
+-}
 
 
 ---------------- Lab 7 ends here ----------------------------------
