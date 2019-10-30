@@ -1,4 +1,6 @@
 import Data.List
+import Data.Array
+import Control.Monad (replicateM)  -- for strings function below
 
 data RegExp = Empty
              | Let Char
@@ -116,8 +118,60 @@ rad (x:ys@(y:zs)) | x == y = rad ys
                     | otherwise = x : rad ys
   
 
+-- Unary set closure (where "set" = normalized list)
+-- uclosure xs g == smallest set containing xs and closed under g
+uclosure :: Ord a => [a] -> (a -> [a]) -> [a]
+uclosure xs g = sort $ stable $ iterate close (xs, []) where
+  stable ((fr,xs):rest) = if null fr then xs else stable rest
+  close (fr, xs) = (fr', xs') where
+    xs' = fr ++ xs
+    fr' = norm $ filter (`notElem` xs') $ concatMap g fr
 
-                    
+-- reachable m == the part of m that is reachable from the start state
+reachable :: Ord a => FSM a -> FSM a
+reachable m@(qs, s, fs, d) = (qs', s, fs', d) where
+  qs' = uclosure [s] (\q -> map (d q) sigma)
+  fs' = filter (`elem` fs) qs'
+
+-- Change the states of an FSM from an equality type to Int 
+-- and use an array lookup for the transition function
+intify :: Eq a => FSM a -> FSM Int
+intify (qs, s, fs, d) = ([0..n-1], s', fs', d') where
+  n = length qs
+  m = length sigma
+  s'  = ind qs s
+  fs' = map (ind qs) fs
+  arr = listArray ((0,0), (n-1,m-1)) [ind qs (d q a) | q <- qs, a <- sigma]
+  d' q a = arr ! (q, ind sigma a)
+  ind (q':qs) q = if q == q' then 0 else 1 + ind qs q
+
+reduce :: Ord a => FSM a -> FSM Int
+reduce = intify . reachable
+
+splits :: [a] -> [([a], [a])]
+splits xs = [(take x xs, drop x xs) | x <- [0..(length xs)]]
+
+accept2_aux :: Eq a => FSM a -> a -> [Char] -> Bool
+accept2_aux m@(_, _, fs, _) q [] = elem q fs
+accept2_aux m@(_, _, _, d) q (a:w) = accept2_aux m (d q a) w
+
+accept2 :: Eq a => FSM a -> [Char] -> Bool
+accept2 m@(_, s, _, _) w = accept2_aux m s w
+
+match1 :: RegExp -> String -> Bool
+match1 Empty w = False
+match1 (Let c) "" = False
+match1 (Let c) (w:ws) = c == w && ws == []
+match1 (Union r1 r2) w = (match1 r1 w) || (match1 r2 w)
+match1 (Cat r1 r2) w = or [ (match1 r1 w1) && (match1 r2 w2) | (w1, w2) <- (splits w) ]
+match1 (Star r1) w = w == "" || or [(match1 r1 w1) && (match1 (Star r1) w2) | (w1, w2) <- (splits w), w1 /= ""]
+
+-- All strings on sigma of length <= n (useful for testing)
+strings :: Int -> [String]
+strings n = concat $ [replicateM i sigma | i <- [0..n]]
+                   
+
+
 ---------- LAB 9 BEGINS HERE --------------
 
 -- Given alphabet. But your code should work with any finite list of characters.
@@ -150,11 +204,24 @@ deriv s (Star' r) = (Cat' [deriv s r, Star' r])
 -- States are SIMPLIFIED extended REs.  Note: to construct all the states,
 -- you will have to use a unary closure process.
 conv :: RegExp' -> FSM RegExp'
-conv r = undefined
+conv r = (qs, s, fs, d) where
+  qs = uclosure [simp r] (\q -> [simp (deriv a q) | a <- sigma])
+  s = simp r
+  fs = [q | q <- qs, byp q]
+  d q a = simp (deriv a q)
 
+
+---------- LAB 9 ENDS HERE --------------
+
+
+-- TESTING 
 
 -- Test, and show your tests! You may copy code from previous labs to help.
 
+testRegExps :: [RegExp']
+testRegExps = [toRE' "a", toRE' "ab.", toRE' "ab+", toRE' "a*", toRE' "ab.ba..ab.+", toRE' "ab+ba.+ab.."]
+
+test = and [ accept2 (conv r) s == match1 (fromRE' r) s | r <- testRegExps, s <- strings 5]
 
 {-
 
@@ -192,4 +259,13 @@ Cat' [Union' [Cat' [One,Let' 'b'],Cat' [Zero,Let' 'a']],Star' (Union' [Cat' [Let
 *Main> simp it
 Cat' [Let' 'b',Star' (Union' [Cat' [Let' 'a',Let' 'b'],Cat' [Let' 'b',Let' 'a']])]
 
+
+
+--! Test a list of RegExp's by comparing the results of accept2 and match1
+
+-- testRegExps = [toRE' "a", toRE' "ab.", toRE' "ab+", toRE' "a*", toRE' "ab.ba..ab.+", toRE' "ab+ba.+ab.."]
+-- test = and [ accept2 (conv r) s == match1 (fromRE' r) s | r <- testRegExps, s <- strings 5]
+
+-- test
+-- True
 -}
