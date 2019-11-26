@@ -1,4 +1,5 @@
 -- Lab 8 Solution: Additional constructions, nondeterministic machines
+-- Bryce Remick
 
 import Data.List
 import Data.Array
