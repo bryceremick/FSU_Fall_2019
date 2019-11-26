@@ -1,4 +1,5 @@
 -- Lab 8 Solution: Additional constructions, nondeterministic machines
+-- Bryce Remick
 
 import Data.List
 import Data.Array
@@ -38,6 +39,7 @@ ends_in_bc = ends_in "bc"
 odd_bs :: FSM Int
 odd_bs = ([0,1], 0, [1], d) where
   d q a = if a == 'b' then (q+1) `mod` 2 else q
+
 
 accept2_aux :: Eq a => FSM a -> a -> [Char] -> Bool
 accept2_aux m@(_, _, fs, _) q [] = elem q fs
@@ -148,6 +150,9 @@ toRE w = toRE' w [] where
   toRE' (x:xs) rs = toRE' xs (Let x:rs)
 
 
+
+
+
 ---------------- Part 1: Additional constructions ----------------
 -- Define the operations given in Section 7 of the notes
 
@@ -189,17 +194,22 @@ homo_dir f (Star r) = Star (homo_dir f r)
 -- Inverse homomorphic image
 -- FSM delta different (pg 48 very end)
 homo_inv :: Eq a => (Char -> String) -> FSM a -> FSM a
-homo_inv f (qs1, s1, fs1, d1) = (qs, s, fs, d) where
+homo_inv f (qs1, s1, fs1, d1) = (qs, s, fs, d1) where
   qs = qs1
   s = s1
   fs = fs1
-  d q a = star q (f a)
+  d q a = star d1 (q (f a))
 
 -- Right quotient
 -- match suffixes. if suffix matches, take the prefix(put in returned language)
 -- (pg 49 before sect 8)
 quot_right :: Eq a => [String] -> FSM a -> FSM a
-quot_right = undefined
+quot_right ws (qs1, s1, fs1, d1) = (qs, s, fs, d) where
+  qs = qs1
+  s = s1
+  fs = [q | q <- qs1, or [(star d1 q w) `elem` fs1 | w <- ws]] 
+  d = d1
+
 
 
 ---------------- Part 2: Nondeterministic machines ----------------
@@ -215,16 +225,16 @@ type NFSM a = ([a], [a], [a], Trans a)
 -- nap_hat d qs a == normalized list of all transitions possible from qs on a
 -- use concat and norm
 nap_hat :: Ord a => Trans a -> [a] -> Char -> [a]
-nap_hat = undefined
+nap_hat d qs a =   norm $ concat [d q' a | q' <- qs]
 
 -- nap_hat_star d qs w == normalized list of transitions possible from qs on w
 -- page 50 "We then define.."
 nap_hat_star :: Ord a => Trans a -> [a] -> [Char] -> [a]
-nap_hat_star = undefined
+nap_hat_star d qs ws = star (nap_hat d) qs ws
 
 -- nacc m w == m accepd the string w
 nacc :: Ord a => NFSM a -> [Char] -> Bool
-nacc = undefined
+nacc (qs, s, fs, d) ws = overlap (nap_hat_star d s ws) fs
 
 
 -- Nondeterministic FSMs with epsilon moves, indexed by their type of state
@@ -235,14 +245,16 @@ type EFSM a = ([a], [a], [a], Trans a, Eps a)
 -- Normalized epsilon closure of a set of states (Hint: use uclosure)
 -- loop thru Eps a apply uclosure to x, and return y where x = q
 eclose :: Ord a => Eps a -> [a] -> [a]
-eclose = undefined
+eclose es qs = uclosure qs f where
+  f q = [e' | (e, e') <- es, e == q] 
+
   
 -- eap_has d es qs a == eclosure of transitions possible from qs on a
 eap_hat :: Ord a => (Trans a, Eps a) -> [a] -> Char -> [a]
-eap_hat = undefined
+eap_hat (d, es) qs a = eclose es (nap_hat d qs a)
 
 eacc :: Ord a => EFSM a -> [Char] -> Bool
-eacc = undefined
+eacc (qs1, s1, fs1, d1, es1) ws = overlap (concat[eap_hat (d1, es1) (eclose es1 s1) w | w <-ws]) fs1
 
 
 
@@ -250,17 +262,32 @@ eacc = undefined
 
 -- Easy conversion from FSM to NFSM (given)
 fsm_to_nfsm :: Eq a => FSM a -> NFSM a
-fsm_to_nfsm = undefined
+fsm_to_nfsm (qs1, s1, fs1, d1) = (qs, s, fs, d) where 
+  qs = qs1
+  s = [s1] 
+  fs = fs1
+  d q a = [d1 q a]
+
 
 
 -- Conversion from NFSM to FSM by the "subset construction"
 nfsm_to_fsm :: Ord a => NFSM a -> FSM [a]
-nfsm_to_fsm = undefined
+nfsm_to_fsm (qs1, s1, fs1, d1) = (qs, s, fs, d) where
+  qs = power qs1
+  s  = s1
+  fs = [x | x <- qs, x `overlap` fs1] 
+  d q a = nap_hat d1 q a
+
 
 
 -- Similar conversion from EFSM to FSM using epsilon closure
 efsm_to_fsm :: Ord a => EFSM a -> FSM [a]
-efsm_to_fsm = undefined
+efsm_to_fsm (qs1, s1, fs1, d1, es1) = (qs, s, fs, d) where
+  qs = subsequences qs1
+  s  = eclose es1 s1
+  fs = [x | x <- qs, x `overlap` fs1] 
+  d q a =  eap_hat (d1, es1) q a
+
 
 
 -- PART 1 TESTS
@@ -302,11 +329,45 @@ aabb+ccdd
 aabbccddeeff
 -}
 
+eletA :: EFSM Int
+eletA = ([0,1,2], [0], [1], d, [(0, 0)]) where
+    d 0 'a' = [1]
+    d _ _ = [2]
+
+
+testFSMs = [letA, letB, odd_bs]
+testNFSMs = [fsm_to_nfsm letA, fsm_to_nfsm letB, fsm_to_nfsm odd_bs]
+
+
+fsm_to_nfsm_test = and [(accept2 fsm s) == (nacc (fsm_to_nfsm fsm) s)| fsm <- testFSMs, s <- strings 4]
+
+nfsm_to_fsm_test = and [(nacc nfsm s) == (accept2 (nfsm_to_fsm nfsm) s)| nfsm <- testNFSMs, s <- strings 4]
 
 {- Tests:
 
 1. m and fsm_to_nfsm m accept the same strings
+
+*Main> fsm_to_nfsm_test
+True
+
 2. m and nfsm_to_fsm m accept the same strings
+
+*Main> nfsm_to_fsm_test
+True
+
 3. m and efsm_to_fsm m accept the same strings
+
+*Main> let n = efsm_to_fsm eletA
+*Main> accept2 n "a"
+True
+*Main> accept2 n "ab"
+False
+*Main> accept2 n "abbb"
+False
+*Main> accept2 n "abae"
+False
+*Main> accept2 n "b"   
+False
+
 
 -}
