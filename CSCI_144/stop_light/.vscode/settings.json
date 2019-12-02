@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "queue": "cpp",
+        "ostream": "cpp",
+        "mutex": "cpp",
+        "xstring": "cpp"
+    }
+}
