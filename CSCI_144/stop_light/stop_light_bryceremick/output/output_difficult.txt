@@ -1,0 +1,41 @@
+1      Car_0 is heading N
+1      Car_10 is heading S
+2      Car_11 heading S turned W
+1      Car_20 is heading W
+2      Car_21 is heading W
+2      Car_12 is heading S
+3      Car_22 heading W turned N
+1      Car_30 is heading E
+2      Car_31 heading E turned N
+1      Car_2 heading N turned W
+1      Car_1 is heading N
+2      Car_13 heading S turned W
+3      Car_23 is heading W
+3      Car_24 heading W turned S
+3      Car_32 heading E turned N
+6      Car_25 heading W turned S
+6      Car_27 is heading W
+4      Car_3 is heading N
+5      Car_14 is heading S
+3      Car_33 is heading E
+6      Car_26 heading W turned N
+4      Car_35 is heading E
+5      Car_4 is heading N
+4      Car_34 heading E turned N
+7      Car_5 heading N turned E
+6      Car_15 heading S turned E
+7      Car_7 heading N turned E
+7      Car_16 is heading S
+9      Car_28 is heading W
+7      Car_36 heading E turned N
+7      Car_6 is heading N
+8      Car_17 is heading S
+10      Car_29 is heading W
+8      Car_37 heading E turned S
+9      Car_8 is heading N
+9      Car_18 is heading S
+9      Car_19 is heading S
+8      Car_38 heading E turned S
+8      Car_39 is heading E
+10      Car_9 is heading N
+DONE: 26.1345 seconds

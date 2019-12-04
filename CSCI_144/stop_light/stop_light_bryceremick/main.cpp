@@ -70,7 +70,7 @@ int main(int argc, const char *argv[])
     chrono::time_point<chrono::system_clock> start, end;
     start = chrono::system_clock::now();        // start timing
 
-    parseFile("medium.txt");                 // parse file and create all threads
+    parseFile("difficult.txt");                 // parse file and create all threads
     thread mainThread(centralProcessing);       // start central processing thread
 
     for (auto &thr : thread_vector)             // join threads
