@@ -1,8 +1,14 @@
 {
     "files.associations": {
+        "*.html": "html",
         "queue": "cpp",
         "ostream": "cpp",
         "mutex": "cpp",
-        "xstring": "cpp"
+        "xstring": "cpp",
+        "vector": "cpp",
+        "thread": "cpp",
+        "iostream": "cpp",
+        "chrono": "cpp",
+        "__mutex_base": "cpp"
     }
 }

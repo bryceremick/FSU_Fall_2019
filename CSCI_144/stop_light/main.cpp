@@ -19,6 +19,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
 using namespace std;
 
 struct car
@@ -49,37 +50,39 @@ priority_queue<car> nQueue;
 priority_queue<car> sQueue;
 priority_queue<car> eQueue;
 priority_queue<car> wQueue;
-priority_queue<car> iQueue;
+queue<car> iQueue;
 
 vector<thread> thread_vector;
+vector<bool> ready_vector; 
 condition_variable intersection;
 mutex m_mutex;
+char globDirection;
 
 void parseFile(string);
-car parseCar(int,int, string);
+car parseCar(int, int, string);
 void print_queue(priority_queue<car> &);
-void go(int,int, string);
+void go(int, int, string);
+void centralProcessing();
+bool collision(car);
+bool allQueuesEmpty();
+bool isSubset(vector<int>, vector<int>);
+void release(int);
 
 int main(int argc, const char *argv[])
 {
 
-    parseFile("difficult.txt");
+    globDirection = 'N';
+    parseFile("difficult.txt");                 // parse file and create all threads
 
-    print_queue(nQueue);
-    cout << "---" << endl;
-    print_queue(sQueue);
-    cout << "---" << endl;
-    print_queue(wQueue);
-    cout << "---" << endl;
-    print_queue(eQueue);
+    thread mainThread(centralProcessing);       // start central processing thread
 
-
-    for (auto & thr : thread_vector)
+    for (auto &thr : thread_vector)             // join threads
         thr.join();
-    
 
-    cout << thread_vector.size() << endl;
+    mainThread.join();                          // join main thread
 
+
+    cout << "DONE" << endl;
     return 0;
 }
 
@@ -93,15 +96,16 @@ void parseFile(string fname)
 
     file.open(fname.c_str());
 
-    if (file.is_open())
+    if (file.is_open())     // if file is open...
     {
-        while (file >> time >> direction)
+        while (file >> time >> direction)   // read line by line
         {
-            thread_vector.push_back(thread(go, id, time, direction));
+            thread_vector.push_back(thread(go, id, time, direction));   // create car thread
+            ready_vector.push_back(false);                              // push back "false" into ready vector
             id++;
         }
     }
-    else
+    else        // else error with file
     {
         cout << "Error: Cannot read file" << endl;
         ::exit(1);
@@ -110,34 +114,133 @@ void parseFile(string fname)
 void go(int id, int time, string direction)
 {
     unique_lock<mutex> mlock(m_mutex);
+    priority_queue<car> *thisQueue;
 
     car car = parseCar(id, time, direction);
 
-    if (car.direction.at(0) == 'N')
+    char releaseDirection = car.direction.at(0);
+
+    if (releaseDirection == 'N')
     {
-        nQueue.push(car);
-        while(!(car == nQueue.top()))
-            intersection.wait(mlock);
-        
-        
+        nQueue.push(car);           // push car into correct queue
+        thisQueue = &nQueue;        // assign thisQueue pointer for later use
     }
-    else if (car.direction.at(0) == 'S')
+    else if (releaseDirection == 'S')
     {
         sQueue.push(car);
+        thisQueue = &sQueue;
     }
-    else if (car.direction.at(0) == 'E')
+    else if (releaseDirection == 'E')
     {
         eQueue.push(car);
+        thisQueue = &eQueue;
     }
-    else if (car.direction.at(0) == 'W')
+    else if (releaseDirection == 'W')
     {
         wQueue.push(car);
+        thisQueue = &wQueue;
     }
     else
     {
         cout << "Parse Error: Not a valid direction" << endl;
         ::exit(1);
     }
+
+     while(!ready_vector.at(car.id))     // wait until allowed to enter intersection
+    {
+        cout << "car_" << car.id << " waiting" << endl;
+        intersection.wait(mlock);
+    }
+
+    iQueue.push(thisQueue->top());
+    cout << "iqueue size:" << iQueue.size() << endl;
+    thisQueue->pop();
+
+    this_thread::sleep_for(chrono::milliseconds(100)); 
+    cout << "Car_" << iQueue.front().id << " is leaving " << iQueue.front().direction.at(0) << "Queue" << endl;
+    iQueue.pop();
+
+    thisQueue = NULL;
+    delete thisQueue;
+}
+void centralProcessing()
+{
+    // unique_lock<mutex> mlock(m_mutex);
+    priority_queue<car> *currQueue;
+    char currDirection;
+
+    while (!(allQueuesEmpty()))
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            if (i == 0)
+            {
+                currQueue = &nQueue;
+                currDirection = 'N';
+            }
+            else if (i == 1)
+            {
+                currQueue = &eQueue;
+                currDirection = 'E';
+            }
+            else if (i == 2)
+            {
+                currQueue = &sQueue;
+                currDirection = 'S';
+            }
+            else
+            {
+                currQueue = &wQueue;
+                currDirection = 'W';
+            }
+
+            if (!(collision(currQueue->top())))
+            {
+                // ready_vector.at(currQueue->top().id) = true;
+                // intersection.notify_one();
+                release(currQueue->top().id);
+                // cout << "no collision between car_" << currQueue->top().id << " and iQueue" << endl;
+            }
+
+            this_thread::sleep_for(chrono::milliseconds(200));
+        }
+    }
+    currQueue = NULL;
+    delete currQueue;
+}
+void release(int id)
+{
+    unique_lock<mutex> mlock(m_mutex);
+    ready_vector.at(id) = true;
+    intersection.notify_one();
+}
+bool collision(car thisCar)
+{
+
+    // temp intersection queue (to loop through and pop)
+    queue<car> tempIQueue = iQueue;
+
+    // comparison vectors (for diagnol turns)
+    vector<int> cmprVec1{0, 3};
+    vector<int> cmprVec2{1, 2};
+
+    // while intersection queue is not empty...
+    while (!(tempIQueue.empty()))
+    {
+
+        if (thisCar.coverage == cmprVec1 && tempIQueue.front().coverage == cmprVec1) // if both cars have 0,3 diagnal turns
+            continue;
+        else if (thisCar.coverage == cmprVec2 && tempIQueue.front().coverage == cmprVec2) // if both cars have 1,2 diagnol turns
+            continue;
+        else if (isSubset(thisCar.coverage, tempIQueue.front().coverage)) // if the two cars share a coverage quadrant
+            return true;
+        else
+            continue; // no collision
+
+        tempIQueue.pop(); // pop and move to next car in intersection queue
+    }
+
+    return false; // if control reaches here, no collisions
 }
 car parseCar(int id, int time, string dir)
 {
@@ -207,7 +310,6 @@ car parseCar(int id, int time, string dir)
         ::exit(1);
     }
 }
-
 void print_queue(priority_queue<car> &pq)
 {
     while (!pq.empty())
@@ -215,4 +317,17 @@ void print_queue(priority_queue<car> &pq)
         cout << setw(4) << pq.top().time << setw(4) << pq.top().direction << setw(4) << endl;
         pq.pop();
     }
+}
+bool allQueuesEmpty()
+{
+    return nQueue.empty() && sQueue.empty() && eQueue.empty() && wQueue.empty();
+}
+bool isSubset(vector<int> A, vector<int> B)
+{
+    for (int i = 0; i < A.size(); i++)
+        for (int j = 0; j < B.size(); j++)
+            if (A[i] == B[j])
+                return true;
+
+    return false;
 }
