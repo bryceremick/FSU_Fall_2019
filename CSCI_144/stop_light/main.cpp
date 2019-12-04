@@ -148,16 +148,25 @@ void go(int id, int time, string direction)
 
      while(!ready_vector.at(car.id))     // wait until allowed to enter intersection
     {
-        cout << "car_" << car.id << " waiting" << endl;
+        // cout << "car_" << car.id << " waiting" << endl;
         intersection.wait(mlock);
     }
 
     iQueue.push(thisQueue->top());
-    cout << "iqueue size:" << iQueue.size() << endl;
     thisQueue->pop();
 
     this_thread::sleep_for(chrono::milliseconds(100)); 
-    cout << "Car_" << iQueue.front().id << " is leaving " << iQueue.front().direction.at(0) << "Queue" << endl;
+    if (iQueue.front().direction.size() < 2)
+    {
+        cout << iQueue.front().time << setw(10) << "Car_" << iQueue.front().id << " is heading " << 
+        iQueue.front().direction.at(0)<< endl;
+    }
+    else
+    {
+        cout << iQueue.front().time << setw(10) << "Car_" << iQueue.front().id << " heading " << 
+        iQueue.front().direction.at(0) << " turned " << iQueue.front().direction.at(1) << endl;
+    }
+    
     iQueue.pop();
 
     thisQueue = NULL;
