@@ -3,6 +3,7 @@
 //  stop_light_bryceremick
 //
 //  Created by Bryce Remick on 11/14/19.
+//  CSCI 144, Fall 2019
 //  Copyright © 2019 Bryce Remick. All rights reserved.
 //
 
