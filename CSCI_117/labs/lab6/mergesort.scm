@@ -16,7 +16,6 @@
                     (cons (car y) (merge x (cdr y)))
                 )
             )
-        
     )
 )
 
